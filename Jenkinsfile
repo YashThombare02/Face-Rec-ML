@@ -25,10 +25,10 @@ pipeline {
                 echo 'Setting up Python environment...'
                 script {
                     bat '''
-                        python -m venv venv
-                        call venv\\Scripts\\activate.bat
-                        python -m pip install --upgrade pip
-                        pip install -r requirements.txt
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\python.exe -m venv venv
+                        call venv\Scripts\activate.bat
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\python.exe -m pip install --upgrade pip
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\pip.exe install -r requirements.txt
                     '''
                 }
             }
@@ -39,8 +39,8 @@ pipeline {
                 echo 'Installing project dependencies...'
                 script {
                     bat '''
-                        call venv\\Scripts\\activate.bat
-                        pip install pytest pytest-cov pylint flake8
+                        call venv\Scripts\activate.bat
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\pip.exe install pytest pytest-cov pylint flake8
                     '''
                 }
             }
@@ -51,15 +51,15 @@ pipeline {
                 echo 'Running linting checks...'
                 script {
                     bat '''
-                        call venv\\Scripts\\activate.bat
+                        call venv\Scripts\activate.bat
                         for /r . %%f in (*.py) do (
                             if not "%%f"==".\\venv\\*" (
-                                pylint --exit-zero "%%f" >> pylint-report.txt 2>&1
+                                C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\pylint.exe --exit-zero "%%f" >> pylint-report.txt 2>&1
                             )
                         )
                         for /r . %%f in (*.py) do (
                             if not "%%f"==".\\venv\\*" (
-                                flake8 --format json "%%f" >> flake8-report.json 2>&1
+                                C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\flake8.exe --format json "%%f" >> flake8-report.json 2>&1
                             )
                         )
                     '''
@@ -72,27 +72,27 @@ pipeline {
                 echo 'Running unit tests...'
                 script {
                     bat '''
-                        call venv\\Scripts\\activate.bat
-                        pytest --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml
+                        call venv\Scripts\activate.bat
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\pytest.exe --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml
                     '''
                 }
             }
         }
 
         stage('Code Quality Analysis - SonarQube') {
-            steps {
-                echo 'Running SonarQube analysis...'
                 script {
                     bat '''
-                        call venv\\Scripts\\activate.bat
-                        pip install sonarscan
-                        sonarscan ^
+                        call venv\Scripts\activate.bat
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\pip.exe install sonarscan
+                        C:\Users\ythom\AppData\Local\Programs\Python\Python314\Scripts\sonarscan.exe ^
                             -Dsonar.projectKey=%PROJECT_NAME% ^
                             -Dsonar.sources=. ^
                             -Dsonar.host.url=http://localhost:9000 ^
                             -Dsonar.login=%SONAR_AUTH_TOKEN% ^
                             -Dsonar.python.coverage.reportPath=coverage.xml ^
                             -Dsonar.exclusions="venv/**,*.npy,model/**,subjects_photos/**"
+                    '''
+                }
                     '''
                 }
             }
