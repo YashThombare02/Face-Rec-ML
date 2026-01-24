@@ -53,12 +53,12 @@ pipeline {
                     bat '''
                         call venv/Scripts/activate.bat
                         for /r . %%f in (*.py) do (
-                            if not "%%f"==".\venv\*" (
+                            if not "%%f"==".venv/*" (
                                 C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pylint.exe --exit-zero "%%f" >> pylint-report.txt 2>&1
                             )
                         )
                         for /r . %%f in (*.py) do (
-                            if not "%%f"==".\venv\*" (
+                            if not "%%f"==".venv/*" (
                                 C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/flake8.exe --format json "%%f" >> flake8-report.json 2>&1
                             )
                         )
