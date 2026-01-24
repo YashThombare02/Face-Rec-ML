@@ -2,8 +2,6 @@ pipeline {
     agent any
 
     environment {
-        SONAR_HOME = tool name: 'SonarQube', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-        PATH = "${SONAR_HOME}/bin:${PATH}"
         PROJECT_NAME = 'face_recognition'
         PYTHON_VERSION = '3.9'
     }
@@ -42,7 +40,7 @@ pipeline {
                 script {
                     sh '''
                         . venv/bin/activate || source venv/Scripts/activate
-                        pip install pytest pytest-cov pylint flake8 sonar-scanner
+                        pip install pytest pytest-cov pylint flake8
                     '''
                 }
             }
@@ -77,29 +75,17 @@ pipeline {
             steps {
                 echo 'Running SonarQube analysis...'
                 script {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            . venv/bin/activate || source venv/Scripts/activate
-                            sonar-scanner \
-                                -Dsonar.projectKey=${PROJECT_NAME} \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                                -Dsonar.python.coverage.reportPath=coverage.xml \
-                                -Dsonar.exclusions="venv/**,*.npy,model/**,subjects_photos/**"
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                echo 'Checking SonarQube Quality Gate...'
-                script {
-                    timeout(time: 10, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: false
-                    }
+                    sh '''
+                        . venv/bin/activate || source venv/Scripts/activate
+                        pip install sonarscan
+                        sonarscan \
+                            -Dsonar.projectKey=${PROJECT_NAME} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=http://localhost:9000 \
+                            -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                            -Dsonar.python.coverage.reportPath=coverage.xml \
+                            -Dsonar.exclusions="venv/**,*.npy,model/**,subjects_photos/**"
+                    '''
                 }
             }
         }
@@ -107,43 +93,34 @@ pipeline {
         stage('Archive Artifacts') {
             steps {
                 echo 'Archiving test and coverage reports...'
-                archiveArtifacts artifacts: '**/test-results.xml,**/coverage.xml,**/htmlcov/**,pylint-report.txt,flake8-report.json', 
-                    allowEmptyArchive: true
-                publishHTML([
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'htmlcov',
-                    reportFiles: 'index.html',
-                    reportName: 'Coverage Report'
-                ])
+                script {
+                    archiveArtifacts artifacts: '**/test-results.xml,**/coverage.xml,**/htmlcov/**,pylint-report.txt,flake8-report.json', 
+                        allowEmptyArchive: true
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'htmlcov',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up workspace...'
-            // Publish test results
-            junit testResults: '**/test-results.xml', allowEmptyResults: true
-            
-            // Publish coverage reports
-            publishCoverage adapters: [coberturaAdapter('**/coverage.xml')], 
-                sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+            echo 'Cleaning up...'
+            script {
+                junit testResults: '**/test-results.xml', allowEmptyResults: true
+            }
         }
         success {
             echo 'Pipeline executed successfully!'
-            // Add email notification if needed
         }
         failure {
             echo 'Pipeline failed! Check the logs for details.'
-            // Add email notification if needed
-        }
-        unstable {
-            echo 'Pipeline is unstable.'
-        }
-        cleanup {
-            deleteDir()
         }
     }
 }
