@@ -24,10 +24,10 @@ pipeline {
             steps {
                 echo 'Setting up Python environment...'
                 script {
-                    sh '''
+                    bat '''
                         python -m venv venv
-                        . venv/bin/activate || source venv/Scripts/activate
-                        pip install --upgrade pip
+                        call venv\\Scripts\\activate.bat
+                        python -m pip install --upgrade pip
                         pip install -r requirements.txt
                     '''
                 }
@@ -38,8 +38,8 @@ pipeline {
             steps {
                 echo 'Installing project dependencies...'
                 script {
-                    sh '''
-                        . venv/bin/activate || source venv/Scripts/activate
+                    bat '''
+                        call venv\\Scripts\\activate.bat
                         pip install pytest pytest-cov pylint flake8
                     '''
                 }
@@ -50,10 +50,18 @@ pipeline {
             steps {
                 echo 'Running linting checks...'
                 script {
-                    sh '''
-                        . venv/bin/activate || source venv/Scripts/activate
-                        find . -name "*.py" -not -path "./venv/*" | xargs pylint --exit-zero > pylint-report.txt || true
-                        find . -name "*.py" -not -path "./venv/*" | xargs flake8 --format json > flake8-report.json || true
+                    bat '''
+                        call venv\\Scripts\\activate.bat
+                        for /r . %%f in (*.py) do (
+                            if not "%%f"==".\\venv\\*" (
+                                pylint --exit-zero "%%f" >> pylint-report.txt 2>&1
+                            )
+                        )
+                        for /r . %%f in (*.py) do (
+                            if not "%%f"==".\\venv\\*" (
+                                flake8 --format json "%%f" >> flake8-report.json 2>&1
+                            )
+                        )
                     '''
                 }
             }
@@ -63,9 +71,9 @@ pipeline {
             steps {
                 echo 'Running unit tests...'
                 script {
-                    sh '''
-                        . venv/bin/activate || source venv/Scripts/activate
-                        pytest --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml || true
+                    bat '''
+                        call venv\\Scripts\\activate.bat
+                        pytest --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml
                     '''
                 }
             }
@@ -75,15 +83,15 @@ pipeline {
             steps {
                 echo 'Running SonarQube analysis...'
                 script {
-                    sh '''
-                        . venv/bin/activate || source venv/Scripts/activate
+                    bat '''
+                        call venv\\Scripts\\activate.bat
                         pip install sonarscan
-                        sonarscan \
-                            -Dsonar.projectKey=${PROJECT_NAME} \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=http://localhost:9000 \
-                            -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                            -Dsonar.python.coverage.reportPath=coverage.xml \
+                        sonarscan ^
+                            -Dsonar.projectKey=%PROJECT_NAME% ^
+                            -Dsonar.sources=. ^
+                            -Dsonar.host.url=http://localhost:9000 ^
+                            -Dsonar.login=%SONAR_AUTH_TOKEN% ^
+                            -Dsonar.python.coverage.reportPath=coverage.xml ^
                             -Dsonar.exclusions="venv/**,*.npy,model/**,subjects_photos/**"
                     '''
                 }
