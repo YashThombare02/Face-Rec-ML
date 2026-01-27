@@ -1,39 +1,46 @@
 import os
-import csv
-from PIL import Image
+import cv2
+import pandas as pd
 
-IMAGE_DIR = "data"
-OUTPUT_FILE = "data/image_metadata.csv"
+IMAGE_DIR = "subjects_photos"
 
-rows = []
-rows.append(["filename", "width", "height", "format", "size_kb"])
+def generate_metadata():
+    records = []
 
-for root, _, files in os.walk(IMAGE_DIR):
-    for file in files:
-        if file.lower().endswith((".png", ".jpg", ".jpeg")):
-            filepath = os.path.join(root, file)
+    for root, dirs, files in os.walk(IMAGE_DIR):
+        for file in files:
+            if file.lower().endswith((".jpg", ".jpeg", ".png")):
+                path = os.path.join(root, file)
 
-            try:
-                with Image.open(filepath) as img:
-                    width, height = img.size
-                    img_format = img.format
-                    size_kb = round(os.path.getsize(filepath) / 1024, 2)
+                try:
+                    img = cv2.imread(path)
+                    if img is None:
+                        continue
 
-                    rows.append([
-                        file,
-                        width,
-                        height,
-                        img_format,
-                        size_kb
-                    ])
-            except Exception as e:
-                print(f"Skipping file {file}: {e}")
+                    height, width, _ = img.shape
+                    size_kb = round(os.path.getsize(path) / 1024, 2)
+                    ext = os.path.splitext(file)[1].replace(".", "").upper()
 
-# Write CSV
-os.makedirs("data", exist_ok=True)
+                    records.append({
+                        "filename": file,
+                        "width": width,
+                        "height": height,
+                        "size_kb": size_kb,
+                        "format": ext
+                    })
 
-with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerows(rows)
+                except Exception as e:
+                    print(f"❌ Failed processing {path}: {e}")
 
-print("image_metadata.csv generated successfully")
+    df = pd.DataFrame(records)
+
+    # ✅ Force CSV to be saved in project root
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    CSV_PATH = os.path.join(BASE_DIR, "image_metadata.csv")
+
+    df.to_csv(CSV_PATH, index=False)
+    print(f"✅ image_metadata.csv saved at: {CSV_PATH}")
+
+
+if __name__ == "__main__":
+    generate_metadata()
