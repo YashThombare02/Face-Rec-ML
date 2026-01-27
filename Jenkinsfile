@@ -59,7 +59,7 @@ pipeline {
             }
         }
 
-        // ---------------- IMAGE METADATA ----------------
+        // ---------------- GENERATE METADATA ----------------
         stage('Generate Image Metadata') {
             steps {
                 echo 'Generating image metadata CSV...'
@@ -76,7 +76,7 @@ pipeline {
                 echo 'Running Great Expectations checkpoint...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    python -m great_expectations checkpoint run data_checkpoint
+                    ${VENV_DIR}\\Scripts\\great_expectations.exe checkpoint run data_checkpoint
                 """
             }
         }
