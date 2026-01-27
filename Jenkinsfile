@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         PROJECT_NAME = 'face_recognition'
-        PYTHON_VERSION = '3.9'
+        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python39'
+        VENV_DIR     = 'venv'
     }
 
     options {
@@ -13,6 +14,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 echo 'Checking out source code...'
@@ -20,115 +22,130 @@ pipeline {
             }
         }
 
+        stage('Puppet Validation') {
+            steps {
+                echo 'Validating Puppet manifests...'
+                bat '''
+                    puppet --version
+                    puppet parser validate puppet/manifests/*.pp
+                '''
+            }
+        }
+
         stage('Setup Environment') {
             steps {
-                echo 'Setting up Python environment...'
-                script {
-                    bat '''
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/python.exe -m venv venv
-                        call venv/Scripts/activate.bat
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/python.exe -m pip install --upgrade pip
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pip.exe install -r requirements.txt
-                    '''
-                }
+                echo 'Setting up Python virtual environment...'
+                bat '''
+                    C:/Users/ythom/AppData/Local/Programs/Python/Python39/python.exe -m venv venv
+                    call venv/Scripts/activate.bat
+                    python -m pip install --upgrade pip
+                '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo 'Installing project dependencies...'
-                script {
-                    bat '''
-                        call venv/Scripts/activate.bat
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pip.exe install pytest pytest-cov pylint flake8
-                    '''
-                }
+                echo 'Installing dependencies...'
+                bat '''
+                    call venv/Scripts/activate.bat
+                    pip install -r requirements.txt
+                    pip install pytest pytest-cov pylint flake8 great_expectations
+                '''
+            }
+        }
+
+        stage('Data Quality Validation') {
+            steps {
+                echo 'Running Great Expectations checkpoint...'
+                bat '''
+                    call venv/Scripts/activate.bat
+                    great_expectations checkpoint run data_checkpoint
+                '''
             }
         }
 
         stage('Linting') {
             steps {
-                echo 'Running linting checks...'
-                script {
-                    bat '''
-                        call venv/Scripts/activate.bat
-                        for /r . %%f in (*.py) do (
-                            if not "%%f"==".venv/*" (
-                                C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pylint.exe --exit-zero "%%f" >> pylint-report.txt 2>&1
-                            )
-                        )
-                        for /r . %%f in (*.py) do (
-                            if not "%%f"==".venv/*" (
-                                C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/flake8.exe --format json "%%f" >> flake8-report.json 2>&1
-                            )
-                        )
-                    '''
-                }
+                echo 'Running lint checks...'
+                bat '''
+                    call venv/Scripts/activate.bat
+                    pylint src --exit-zero > pylint-report.txt
+                    flake8 src --format=json --output-file=flake8-report.json
+                '''
             }
         }
 
         stage('Unit Tests') {
             steps {
                 echo 'Running unit tests...'
-                script {
+                bat '''
+                    call venv/Scripts/activate.bat
+                    pytest ^
+                      --cov=src ^
+                      --cov-report=xml:coverage.xml ^
+                      --cov-report=html ^
+                      --junitxml=test-results.xml
+                '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube scan...'
+                withSonarQubeEnv('SonarQube') {
                     bat '''
-                        call venv/Scripts/activate.bat
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pytest.exe --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml
+                        sonar-scanner ^
+                          -Dsonar.projectKey=face_recognition ^
+                          -Dsonar.sources=src ^
+                          -Dsonar.python.coverage.reportPaths=coverage.xml ^
+                          -Dsonar.junit.reportPaths=test-results.xml ^
+                          -Dsonar.exclusions=venv/**,*.npy,model/**,subjects_photos/**
                     '''
                 }
             }
         }
 
-        stage('Code Quality Analysis - SonarQube') {
-                script {
-                    bat '''
-                        call venv/Scripts/activate.bat
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/pip.exe install sonarscan
-                        C:/Users/ythom/AppData/Local/Programs/Python/Python314/Scripts/sonarscan.exe ^
-                            -Dsonar.projectKey=%PROJECT_NAME% ^
-                            -Dsonar.sources=. ^
-                            -Dsonar.host.url=http://localhost:9000 ^
-                            -Dsonar.login=%SONAR_AUTH_TOKEN% ^
-                            -Dsonar.python.coverage.reportPath=coverage.xml ^
-                            -Dsonar.exclusions="venv/**,*.npy,model/**,subjects_photos/**"
-                    '''
-                }
-                    '''
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
 
         stage('Archive Artifacts') {
             steps {
-                echo 'Archiving test and coverage reports...'
-                script {
-                    archiveArtifacts artifacts: '**/test-results.xml,**/coverage.xml,**/htmlcov/**,pylint-report.txt,flake8-report.json', 
-                        allowEmptyArchive: true
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'htmlcov',
-                        reportFiles: 'index.html',
-                        reportName: 'Coverage Report'
-                    ])
-                }
+                echo 'Archiving reports...'
+                archiveArtifacts artifacts: '''
+                    test-results.xml,
+                    coverage.xml,
+                    htmlcov/**,
+                    pylint-report.txt,
+                    flake8-report.json,
+                    great_expectations/uncommitted/data_docs/**
+                ''', allowEmptyArchive: true
+
+                publishHTML([
+                    allowMissing: true,
+                    keepAll: true,
+                    reportDir: 'htmlcov',
+                    reportFiles: 'index.html',
+                    reportName: 'Coverage Report'
+                ])
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up...'
-            script {
-                junit testResults: '**/test-results.xml', allowEmptyResults: true
-            }
+            junit testResults: 'test-results.xml', allowEmptyResults: true
+            cleanWs()
         }
         success {
-            echo 'Pipeline executed successfully!'
+            echo '✅ Pipeline executed successfully!'
         }
         failure {
-            echo 'Pipeline failed! Check the logs for details.'
+            echo '❌ Pipeline failed — check logs.'
         }
     }
 }
