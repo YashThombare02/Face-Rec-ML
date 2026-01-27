@@ -5,6 +5,7 @@ pipeline {
         PROJECT_NAME = 'face_recognition'
         PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
         VENV_DIR     = 'venv'
+        PUPPET_BIN   = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
     }
 
     options {
@@ -27,10 +28,10 @@ pipeline {
         stage('Puppet Validation') {
             steps {
                 echo 'Validating Puppet manifests...'
-                bat '''
-                    "C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat" --version
-                    "C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat" parser validate puppet/manifests/*.pp
-                '''
+                bat """
+                    "${PUPPET_BIN}" --version
+                    "${PUPPET_BIN}" parser validate puppet/manifests/*.pp
+                """
             }
         }
 
@@ -47,7 +48,6 @@ pipeline {
             }
         }
 
-        // ---------------- DEPENDENCIES ----------------
         stage('Install Dependencies') {
             steps {
                 echo 'Installing dependencies...'
@@ -59,7 +59,7 @@ pipeline {
             }
         }
 
-        // ---------------- GENERATE METADATA ----------------
+        // ---------------- GENERATE IMAGE METADATA ----------------
         stage('Generate Image Metadata') {
             steps {
                 echo 'Generating image metadata CSV...'
@@ -76,7 +76,7 @@ pipeline {
                 echo 'Running Great Expectations checkpoint...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    python -m great_expectations.cli checkpoint run data_checkpoint
+                    python run_ge_checkpoint.py
                 """
             }
         }
