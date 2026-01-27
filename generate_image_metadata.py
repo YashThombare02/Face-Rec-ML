@@ -39,7 +39,7 @@ def generate_metadata():
     CSV_PATH = os.path.join(BASE_DIR, "image_metadata.csv")
 
     df.to_csv(CSV_PATH, index=False)
-    print(f"✅ image_metadata.csv saved at: {CSV_PATH}")
+    print(f" image_metadata.csv saved at: {CSV_PATH}")
 
 
 if __name__ == "__main__":
