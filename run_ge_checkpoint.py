@@ -14,7 +14,7 @@ def main():
     print(f"Looking for CSV at: {CSV_FILE}")
 
     if not os.path.exists(CSV_FILE):
-        print("❌ image_metadata.csv not found!")
+        print(" image_metadata.csv not found!")
         sys.exit(1)
 
     df = pd.read_csv(CSV_FILE)
