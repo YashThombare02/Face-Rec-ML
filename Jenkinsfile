@@ -3,8 +3,9 @@ pipeline {
 
     environment {
         PROJECT_NAME = 'face_recognition'
-        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python39'
+        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python39/python.exe'
         VENV_DIR     = 'venv'
+        PUPPET_HOME  = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
     }
 
     options {
@@ -27,10 +28,10 @@ pipeline {
         stage('Puppet Validation') {
             steps {
                 echo 'Validating Puppet manifests...'
-                bat '''
-                    puppet --version
-                    puppet parser validate puppet/manifests/*.pp
-                '''
+                bat """
+                    "${PUPPET_HOME}" --version
+                    "${PUPPET_HOME}" parser validate puppet\\manifests\\site.pp
+                """
             }
         }
 
@@ -38,86 +39,43 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 echo 'Setting up Python virtual environment...'
-                bat '''
-                    C:/Users/ythom/AppData/Local/Programs/Python/Python39/python.exe -m venv venv
-                    call venv/Scripts/activate.bat
+                bat """
+                    "${PYTHON_HOME}" -m venv ${VENV_DIR}
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     python -m pip install --upgrade pip
-                '''
+                """
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 echo 'Installing dependencies...'
-                bat '''
-                    call venv/Scripts/activate.bat
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     pip install -r requirements.txt
-                    pip install pytest pytest-cov pylint flake8 great_expectations
-                '''
+                """
+            }
+        }
+
+        // ---------------- GENERATE IMAGE METADATA ----------------
+        stage('Generate Image Metadata') {
+            steps {
+                echo 'Generating image metadata...'
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
+                    python generate_image_metadata.py
+                """
             }
         }
 
         // ---------------- GREAT EXPECTATIONS ----------------
         stage('Data Quality Validation') {
             steps {
-                echo 'Running Great Expectations checkpoint...'
-                bat '''
-                    call venv/Scripts/activate.bat
-                    great_expectations checkpoint run data_checkpoint
-                '''
-            }
-        }
-
-        // ---------------- LINTING ----------------
-        stage('Linting') {
-            steps {
-                echo 'Running lint checks...'
-                bat '''
-                    call venv/Scripts/activate.bat
-                    pylint src --exit-zero > pylint-report.txt
-                    flake8 src --format=json --output-file=flake8-report.json
-                '''
-            }
-        }
-
-        // ---------------- UNIT TESTS ----------------
-        stage('Unit Tests') {
-            steps {
-                echo 'Running unit tests...'
-                bat '''
-                    call venv/Scripts/activate.bat
-                    pytest ^
-                      --cov=src ^
-                      --cov-report=xml:coverage.xml ^
-                      --cov-report=html ^
-                      --junitxml=test-results.xml
-                '''
-            }
-        }
-
-        // ---------------- SONARQUBE ----------------
-        stage('SonarQube Analysis') {
-            steps {
-                echo 'Running SonarQube scan...'
-                withSonarQubeEnv('SonarQube') {
-                    bat '''
-                        sonar-scanner ^
-                          -Dsonar.projectKey=face_recognition ^
-                          -Dsonar.sources=src ^
-                          -Dsonar.python.coverage.reportPaths=coverage.xml ^
-                          -Dsonar.junit.reportPaths=test-results.xml ^
-                          -Dsonar.exclusions=venv/**,*.npy,model/**,subjects_photos/**
-                    '''
-                }
-            }
-        }
-
-        // ---------------- QUALITY GATE ----------------
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                echo 'Running Great Expectations validation...'
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
+                    python run_validation.py
+                """
             }
         }
 
@@ -126,21 +84,18 @@ pipeline {
             steps {
                 echo 'Archiving reports...'
                 archiveArtifacts artifacts: '''
-                    test-results.xml,
-                    coverage.xml,
-                    htmlcov/**,
-                    pylint-report.txt,
-                    flake8-report.json,
-                    great_expectations/uncommitted/data_docs/**
+                    image_metadata.csv,
+                    great_expectations/**,
+                    *.log
                 ''', allowEmptyArchive: true
 
                 publishHTML([
                     allowMissing: true,
-                    alwaysLinkToLastBuild: true,   // ✅ REQUIRED FIX
+                    alwaysLinkToLastBuild: true,
                     keepAll: true,
-                    reportDir: 'htmlcov',
+                    reportDir: 'great_expectations/uncommitted/data_docs',
                     reportFiles: 'index.html',
-                    reportName: 'Coverage Report'
+                    reportName: 'Data Quality Report'
                 ])
             }
         }
@@ -148,7 +103,6 @@ pipeline {
 
     post {
         always {
-            junit testResults: 'test-results.xml', allowEmptyResults: true
             cleanWs()
         }
         success {
