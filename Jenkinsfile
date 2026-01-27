@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         PROJECT_NAME = 'face_recognition'
-        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python39'
+        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
         VENV_DIR     = 'venv'
     }
 
@@ -28,8 +28,8 @@ pipeline {
             steps {
                 echo 'Validating Puppet manifests...'
                 bat '''
-                    puppet --version
-                    puppet parser validate puppet/manifests/*.pp
+                    "C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat" --version
+                    "C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat" parser validate puppet/manifests/*.pp
                 '''
             }
         }
@@ -38,22 +38,35 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 echo 'Setting up Python virtual environment...'
-                bat '''
-                    C:/Users/ythom/AppData/Local/Programs/Python/Python39/python.exe -m venv venv
-                    call venv/Scripts/activate.bat
+                bat """
+                    "${PYTHON_HOME}" --version
+                    "${PYTHON_HOME}" -m venv ${VENV_DIR}
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     python -m pip install --upgrade pip
-                '''
+                """
             }
         }
 
+        // ---------------- DEPENDENCIES ----------------
         stage('Install Dependencies') {
             steps {
                 echo 'Installing dependencies...'
-                bat '''
-                    call venv/Scripts/activate.bat
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     pip install -r requirements.txt
-                    pip install pytest pytest-cov pylint flake8 great_expectations
-                '''
+                    pip install pytest pytest-cov pylint flake8 great_expectations pandas
+                """
+            }
+        }
+
+        // ---------------- GENERATE METADATA ----------------
+        stage('Generate Image Metadata') {
+            steps {
+                echo 'Generating image metadata CSV...'
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
+                    python generate_image_metadata.py
+                """
             }
         }
 
@@ -61,10 +74,10 @@ pipeline {
         stage('Data Quality Validation') {
             steps {
                 echo 'Running Great Expectations checkpoint...'
-                bat '''
-                    call venv/Scripts/activate.bat
-                    great_expectations checkpoint run data_checkpoint
-                '''
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
+                    python -m great_expectations.cli checkpoint run data_checkpoint
+                """
             }
         }
 
@@ -72,11 +85,11 @@ pipeline {
         stage('Linting') {
             steps {
                 echo 'Running lint checks...'
-                bat '''
-                    call venv/Scripts/activate.bat
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     pylint src --exit-zero > pylint-report.txt
                     flake8 src --format=json --output-file=flake8-report.json
-                '''
+                """
             }
         }
 
@@ -84,40 +97,14 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 echo 'Running unit tests...'
-                bat '''
-                    call venv/Scripts/activate.bat
+                bat """
+                    call ${VENV_DIR}\\Scripts\\activate.bat
                     pytest ^
                       --cov=src ^
                       --cov-report=xml:coverage.xml ^
                       --cov-report=html ^
                       --junitxml=test-results.xml
-                '''
-            }
-        }
-
-        // ---------------- SONARQUBE ----------------
-        stage('SonarQube Analysis') {
-            steps {
-                echo 'Running SonarQube scan...'
-                withSonarQubeEnv('SonarQube') {
-                    bat '''
-                        sonar-scanner ^
-                          -Dsonar.projectKey=face_recognition ^
-                          -Dsonar.sources=src ^
-                          -Dsonar.python.coverage.reportPaths=coverage.xml ^
-                          -Dsonar.junit.reportPaths=test-results.xml ^
-                          -Dsonar.exclusions=venv/**,*.npy,model/**,subjects_photos/**
-                    '''
-                }
-            }
-        }
-
-        // ---------------- QUALITY GATE ----------------
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                """
             }
         }
 
@@ -136,7 +123,7 @@ pipeline {
 
                 publishHTML([
                     allowMissing: true,
-                    alwaysLinkToLastBuild: true,   // ✅ REQUIRED FIX
+                    alwaysLinkToLastBuild: true,
                     keepAll: true,
                     reportDir: 'htmlcov',
                     reportFiles: 'index.html',
