@@ -1,13 +1,21 @@
 import sys
+import os
 import pandas as pd
 import great_expectations as gx
 
-CSV_FILE = "image_metadata.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, "image_metadata.csv")
+
 EXPECTATION_SUITE_NAME = "image_quality_suite"
 
 
 def main():
     print("Running Great Expectations validation...")
+    print(f"Looking for CSV at: {CSV_FILE}")
+
+    if not os.path.exists(CSV_FILE):
+        print("❌ image_metadata.csv not found!")
+        sys.exit(1)
 
     df = pd.read_csv(CSV_FILE)
 
@@ -39,10 +47,10 @@ def main():
     validator.save_expectation_suite()
 
     if not results["success"]:
-        print("Data quality validation FAILED")
+        print(" Data quality validation FAILED")
         sys.exit(1)
 
-    print("Data quality validation PASSED")
+    print(" Data quality validation PASSED")
 
 
 if __name__ == "__main__":
