@@ -5,6 +5,7 @@ pipeline {
         PROJECT_NAME = 'face_recognition'
         PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
         VENV_DIR     = 'venv'
+        PUPPET_BIN   = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
     }
 
     options {
@@ -27,10 +28,10 @@ pipeline {
         stage('Puppet Validation') {
             steps {
                 echo 'Validating Puppet manifests...'
-                bat '''
-                    puppet --version
-                    puppet parser validate puppet/manifests/*.pp
-                '''
+                bat """
+                    "${PUPPET_BIN}" --version
+                    "${PUPPET_BIN}" parser validate puppet/manifests/*.pp
+                """
             }
         }
 
