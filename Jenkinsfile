@@ -15,6 +15,7 @@ pipeline {
 
     stages {
 
+        // ---------------- CHECKOUT ----------------
         stage('Checkout') {
             steps {
                 echo 'Checking out source code...'
@@ -22,6 +23,7 @@ pipeline {
             }
         }
 
+        // ---------------- PUPPET ----------------
         stage('Puppet Validation') {
             steps {
                 echo 'Validating Puppet manifests...'
@@ -32,6 +34,7 @@ pipeline {
             }
         }
 
+        // ---------------- PYTHON SETUP ----------------
         stage('Setup Environment') {
             steps {
                 echo 'Setting up Python virtual environment...'
@@ -54,6 +57,7 @@ pipeline {
             }
         }
 
+        // ---------------- GREAT EXPECTATIONS ----------------
         stage('Data Quality Validation') {
             steps {
                 echo 'Running Great Expectations checkpoint...'
@@ -64,6 +68,7 @@ pipeline {
             }
         }
 
+        // ---------------- LINTING ----------------
         stage('Linting') {
             steps {
                 echo 'Running lint checks...'
@@ -75,6 +80,7 @@ pipeline {
             }
         }
 
+        // ---------------- UNIT TESTS ----------------
         stage('Unit Tests') {
             steps {
                 echo 'Running unit tests...'
@@ -89,6 +95,7 @@ pipeline {
             }
         }
 
+        // ---------------- SONARQUBE ----------------
         stage('SonarQube Analysis') {
             steps {
                 echo 'Running SonarQube scan...'
@@ -105,6 +112,7 @@ pipeline {
             }
         }
 
+        // ---------------- QUALITY GATE ----------------
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -113,6 +121,7 @@ pipeline {
             }
         }
 
+        // ---------------- ARCHIVE ----------------
         stage('Archive Artifacts') {
             steps {
                 echo 'Archiving reports...'
@@ -127,6 +136,7 @@ pipeline {
 
                 publishHTML([
                     allowMissing: true,
+                    alwaysLinkToLastBuild: true,   // ✅ REQUIRED FIX
                     keepAll: true,
                     reportDir: 'htmlcov',
                     reportFiles: 'index.html',
