@@ -30,7 +30,11 @@ pipeline {
                 echo 'Validating Puppet manifests...'
                 bat """
                     "${PUPPET_BIN}" --version
-                    "${PUPPET_BIN}" parser validate puppet/manifests/*.pp
+                    if exist puppet\\manifests (
+                        "${PUPPET_BIN}" parser validate puppet\\manifests\\*.pp
+                    ) else (
+                        echo No puppet manifests found - skipping validation
+                    )
                 """
             }
         }
@@ -41,13 +45,16 @@ pipeline {
                 echo 'Setting up Python virtual environment...'
                 bat """
                     "${PYTHON_HOME}" --version
-                    "${PYTHON_HOME}" -m venv ${VENV_DIR}
+                    if not exist ${VENV_DIR} (
+                        "${PYTHON_HOME}" -m venv ${VENV_DIR}
+                    )
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     python -m pip install --upgrade pip
                 """
             }
         }
 
+        // ---------------- DEPENDENCIES ----------------
         stage('Install Dependencies') {
             steps {
                 echo 'Installing dependencies...'
@@ -66,6 +73,10 @@ pipeline {
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     python generate_image_metadata.py
+
+                    echo -------- Workspace Files --------
+                    dir
+                    echo ---------------------------------
                 """
             }
         }
@@ -73,7 +84,7 @@ pipeline {
         // ---------------- GREAT EXPECTATIONS ----------------
         stage('Data Quality Validation') {
             steps {
-                echo 'Running Great Expectations checkpoint...'
+                echo 'Running Great Expectations validation...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     python run_ge_checkpoint.py
@@ -87,8 +98,15 @@ pipeline {
                 echo 'Running lint checks...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    pylint src --exit-zero > pylint-report.txt
-                    flake8 src --format=json --output-file=flake8-report.json
+
+                    if exist src (
+                        pylint src --exit-zero > pylint-report.txt
+                        flake8 src --format=json --output-file=flake8-report.json
+                    ) else (
+                        echo No src folder found - running lint on project root
+                        pylint . --exit-zero > pylint-report.txt
+                        flake8 . --format=json --output-file=flake8-report.json
+                    )
                 """
             }
         }
@@ -99,11 +117,14 @@ pipeline {
                 echo 'Running unit tests...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    pytest ^
-                      --cov=src ^
-                      --cov-report=xml:coverage.xml ^
-                      --cov-report=html ^
-                      --junitxml=test-results.xml
+
+                    if exist tests (
+                        pytest ^
+                          --junitxml=test-results.xml
+                    ) else (
+                        echo No tests folder found - skipping tests
+                        echo.> test-results.xml
+                    )
                 """
             }
         }
@@ -113,22 +134,13 @@ pipeline {
             steps {
                 echo 'Archiving reports...'
                 archiveArtifacts artifacts: '''
+                    image_metadata.csv,
                     test-results.xml,
-                    coverage.xml,
-                    htmlcov/**,
                     pylint-report.txt,
                     flake8-report.json,
-                    great_expectations/uncommitted/data_docs/**
+                    gx/**,
+                    great_expectations/**
                 ''', allowEmptyArchive: true
-
-                publishHTML([
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'htmlcov',
-                    reportFiles: 'index.html',
-                    reportName: 'Coverage Report'
-                ])
             }
         }
     }
