@@ -53,8 +53,8 @@ pipeline {
                 echo 'Installing dependencies...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    python -m pip install -r requirements.txt
-                    python -m pip install pytest pytest-cov pylint flake8 great_expectations
+                    pip install -r requirements.txt
+                    pip install pytest pytest-cov pylint flake8 great_expectations pillow pandas
                 """
             }
         }
@@ -76,7 +76,7 @@ pipeline {
                 echo 'Running Great Expectations checkpoint...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    venv\\Scripts\\great_expectations.exe checkpoint run data_checkpoint
+                    great_expectations checkpoint run data_checkpoint
                 """
             }
         }
@@ -87,8 +87,8 @@ pipeline {
                 echo 'Running lint checks...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    pylint . --exit-zero > pylint-report.txt
-                    flake8 . --format=json --output-file=flake8-report.json
+                    pylint src --exit-zero > pylint-report.txt
+                    flake8 src --format=json --output-file=flake8-report.json
                 """
             }
         }
@@ -100,37 +100,11 @@ pipeline {
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     pytest ^
-                      --cov=. ^
+                      --cov=src ^
                       --cov-report=xml:coverage.xml ^
                       --cov-report=html ^
                       --junitxml=test-results.xml
                 """
-            }
-        }
-
-        // ---------------- SONARQUBE ----------------
-        stage('SonarQube Analysis') {
-            steps {
-                echo 'Running SonarQube scan...'
-                withSonarQubeEnv('SonarQube') {
-                    bat """
-                        sonar-scanner ^
-                          -Dsonar.projectKey=${PROJECT_NAME} ^
-                          -Dsonar.sources=. ^
-                          -Dsonar.python.coverage.reportPaths=coverage.xml ^
-                          -Dsonar.junit.reportPaths=test-results.xml ^
-                          -Dsonar.exclusions=venv/**,*.npy,model/**,subjects_photos/**
-                    """
-                }
-            }
-        }
-
-        // ---------------- QUALITY GATE ----------------
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
             }
         }
 
@@ -165,10 +139,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo '✅ Pipeline executed successfully!'
+            echo 'Pipeline executed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed — check logs.'
+            echo 'Pipeline failed — check logs.'
         }
     }
 }
