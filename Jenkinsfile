@@ -76,7 +76,7 @@ pipeline {
                 echo 'Running Great Expectations checkpoint...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    ${VENV_DIR}\\Scripts\\great_expectations.exe checkpoint run data_checkpoint
+                    python -m great_expectations.cli checkpoint run data_checkpoint
                 """
             }
         }
