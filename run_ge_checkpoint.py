@@ -52,13 +52,13 @@ def main():
         options={"dataframe": df}
     )
 
-    # ✅ Create expectation suite properly (positional constructor)
+    # ✅ Create expectation suite only if missing
     suite_name = "image_metadata_suite"
     existing_suites = [s.name for s in context.suites.all()]
 
     if suite_name not in existing_suites:
         print("Creating expectation suite...")
-        suite = ExpectationSuite(suite_name)   # ✅ FIX HERE
+        suite = ExpectationSuite(suite_name)
         context.suites.add(suite)
     else:
         print("Using existing expectation suite")
@@ -74,8 +74,7 @@ def main():
     validator.expect_column_values_to_be_between("width", min_value=1)
     validator.expect_column_values_to_be_between("height", min_value=1)
 
-    # ✅ Save + validate
-    validator.save_expectation_suite(discard_failed_expectations=False)
+    # ✅ Validate only (DO NOT save again)
     results = validator.validate()
 
     print("Validation success:", results["success"])
