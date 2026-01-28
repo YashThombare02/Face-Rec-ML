@@ -46,8 +46,10 @@ def main():
     else:
         asset = datasource.get_asset(asset_name)
 
-    # ✅ Build batch request (NO arguments in this GE version)
-    batch_request = asset.build_batch_request()
+    # ✅ Build batch request (THIS IS THE CORRECT SIGNATURE ✅)
+    batch_request = asset.build_batch_request(
+        options={"dataframe": df}
+    )
 
     # ✅ Create / load expectation suite
     suite_name = "image_metadata_suite"
@@ -59,11 +61,10 @@ def main():
         print("Creating expectation suite...")
         context.add_expectation_suite(expectation_suite_name=suite_name)
 
-    # ✅ Validator (dataframe passed here instead)
+    # ✅ Validator
     validator = context.get_validator(
         batch_request=batch_request,
         expectation_suite_name=suite_name,
-        batch_data=df,   # ✅ THIS IS THE KEY FIX
     )
 
     # ✅ Expectations
