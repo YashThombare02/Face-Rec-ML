@@ -51,10 +51,20 @@ def main():
         options={"dataframe": df}
     )
 
-    # ✅ Validator (suite auto-created internally)
+    # ✅ Create expectation suite (Ephemeral compatible)
+    suite_name = "image_metadata_suite"
+    existing_suites = [s.name for s in context.suites.all()]
+
+    if suite_name not in existing_suites:
+        print("Creating expectation suite...")
+        context.suites.add(name=suite_name)
+    else:
+        print("Using existing expectation suite")
+
+    # ✅ Validator
     validator = context.get_validator(
         batch_request=batch_request,
-        expectation_suite_name="image_metadata_suite",
+        expectation_suite_name=suite_name,
     )
 
     # ✅ Expectations
