@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import great_expectations as gx
+from great_expectations.core import ExpectationSuite
 
 # -----------------------------------
 # Always resolve CSV from this file's directory
@@ -51,13 +52,14 @@ def main():
         options={"dataframe": df}
     )
 
-    # ✅ Create expectation suite (older API uses positional arg)
+    # ✅ Create expectation suite properly
     suite_name = "image_metadata_suite"
     existing_suites = [s.name for s in context.suites.all()]
 
     if suite_name not in existing_suites:
         print("Creating expectation suite...")
-        context.suites.add(suite_name)   # ✅ FIXED HERE
+        suite = ExpectationSuite(expectation_suite_name=suite_name)
+        context.suites.add(suite)
     else:
         print("Using existing expectation suite")
 
