@@ -46,10 +46,8 @@ def main():
     else:
         asset = datasource.get_asset(asset_name)
 
-    # ✅ Build batch request (older GE compatible)
-    batch_request = asset.build_batch_request(
-        batch_parameters={"dataframe": df}
-    )
+    # ✅ Build batch request (NO arguments in this GE version)
+    batch_request = asset.build_batch_request()
 
     # ✅ Create / load expectation suite
     suite_name = "image_metadata_suite"
@@ -61,10 +59,11 @@ def main():
         print("Creating expectation suite...")
         context.add_expectation_suite(expectation_suite_name=suite_name)
 
-    # ✅ Validator
+    # ✅ Validator (dataframe passed here instead)
     validator = context.get_validator(
         batch_request=batch_request,
         expectation_suite_name=suite_name,
+        batch_data=df,   # ✅ THIS IS THE KEY FIX
     )
 
     # ✅ Expectations
@@ -79,9 +78,9 @@ def main():
     print("Validation success:", results["success"])
 
     if not results["success"]:
-        raise Exception(" Data quality validation FAILED")
+        raise Exception("❌ Data quality validation FAILED")
 
-    print(" Data quality checks PASSED")
+    print("✅ Data quality checks PASSED")
 
 if __name__ == "__main__":
     main()
