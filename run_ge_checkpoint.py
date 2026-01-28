@@ -37,15 +37,18 @@ def main():
         print("Using existing datasource")
         datasource = context.data_sources.get(datasource_name)
 
-    # ✅ Register dataframe as an asset
+    # ✅ Register dataframe asset (no dataframe passed here)
     asset_name = "image_metadata_asset"
-    asset = datasource.add_dataframe_asset(
-        name=asset_name,
-        dataframe=df
-    )
 
-    # ✅ Build batch request
-    batch_request = asset.build_batch_request()
+    # Avoid duplicate asset creation
+    existing_assets = [a.name for a in datasource.assets]
+    if asset_name not in existing_assets:
+        asset = datasource.add_dataframe_asset(name=asset_name)
+    else:
+        asset = datasource.get_asset(asset_name)
+
+    # ✅ Build batch request using dataframe
+    batch_request = asset.build_batch_request(dataframe=df)
 
     # ✅ Create / load expectation suite
     suite_name = "image_metadata_suite"
