@@ -51,13 +51,13 @@ def main():
         options={"dataframe": df}
     )
 
-    # ✅ Create expectation suite (Ephemeral compatible)
+    # ✅ Create expectation suite (older API uses positional arg)
     suite_name = "image_metadata_suite"
     existing_suites = [s.name for s in context.suites.all()]
 
     if suite_name not in existing_suites:
         print("Creating expectation suite...")
-        context.suites.add(name=suite_name)
+        context.suites.add(suite_name)   # ✅ FIXED HERE
     else:
         print("Using existing expectation suite")
 
