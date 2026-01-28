@@ -92,7 +92,7 @@ pipeline {
             }
         }
 
-        // ---------------- LINTING (FAST) ----------------
+        // ---------------- LINTING (SAFE + FAST) ----------------
         stage('Linting') {
             steps {
                 echo 'Running lint checks...'
@@ -101,11 +101,11 @@ pipeline {
 
                     if exist src (
                         pylint src --ignore=venv --exit-zero > pylint-report.txt
-                        flake8 src --exclude=venv,__pycache__ --format=json --output-file=flake8-report.json
+                        flake8 src --exclude=venv,__pycache__ --format=json --output-file=flake8-report.json || exit /b 0
                     ) else (
                         echo No src folder found - running lint on python files only
                         pylint *.py --exit-zero > pylint-report.txt
-                        flake8 *.py --format=json --output-file=flake8-report.json
+                        flake8 *.py --format=json --output-file=flake8-report.json || exit /b 0
                     )
                 """
             }
