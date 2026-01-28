@@ -52,13 +52,13 @@ def main():
         options={"dataframe": df}
     )
 
-    # ✅ Create expectation suite properly
+    # ✅ Create expectation suite properly (positional constructor)
     suite_name = "image_metadata_suite"
     existing_suites = [s.name for s in context.suites.all()]
 
     if suite_name not in existing_suites:
         print("Creating expectation suite...")
-        suite = ExpectationSuite(expectation_suite_name=suite_name)
+        suite = ExpectationSuite(suite_name)   # ✅ FIX HERE
         context.suites.add(suite)
     else:
         print("Using existing expectation suite")
