@@ -92,7 +92,7 @@ pipeline {
             }
         }
 
-        // ---------------- LINTING ----------------
+        // ---------------- LINTING (FAST) ----------------
         stage('Linting') {
             steps {
                 echo 'Running lint checks...'
@@ -100,12 +100,12 @@ pipeline {
                     call ${VENV_DIR}\\Scripts\\activate.bat
 
                     if exist src (
-                        pylint src --exit-zero > pylint-report.txt
-                        flake8 src --format=json --output-file=flake8-report.json
+                        pylint src --ignore=venv --exit-zero > pylint-report.txt
+                        flake8 src --exclude=venv,__pycache__ --format=json --output-file=flake8-report.json
                     ) else (
-                        echo No src folder found - running lint on project root
-                        pylint . --exit-zero > pylint-report.txt
-                        flake8 . --format=json --output-file=flake8-report.json
+                        echo No src folder found - running lint on python files only
+                        pylint *.py --exit-zero > pylint-report.txt
+                        flake8 *.py --format=json --output-file=flake8-report.json
                     )
                 """
             }
@@ -151,10 +151,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo '✅ Pipeline executed successfully!'
+            echo 'Pipeline executed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed — check logs.'
+            echo 'Pipeline failed — check logs.'
         }
     }
 }
