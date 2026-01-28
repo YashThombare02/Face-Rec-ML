@@ -24,60 +24,60 @@ def main():
     df = pd.read_csv(CSV_FILE)
     print(f"Loaded {len(df)} rows")
 
-    # Create in-memory Great Expectations context
+    # ✅ Create Great Expectations context
     context = gx.get_context()
 
-    # Create pandas datasource (GX compatible)
     datasource_name = "pandas_datasource"
-    try:
-        datasource = context.get_datasource(datasource_name)
+
+    # ✅ Create or load Fluent Pandas datasource
+    if datasource_name not in context.data_sources.all():
+        print("Creating Fluent Pandas datasource...")
+        datasource = context.data_sources.add_pandas(name=datasource_name)
+    else:
         print("Using existing datasource")
-    except Exception:
-        print("Creating datasource...")
-        datasource = context.add_datasource(
-            name=datasource_name,
-            class_name="Datasource",
-            execution_engine={
-                "class_name": "PandasExecutionEngine"
-            },
-            data_connectors={
-                "default_runtime_data_connector_name": {
-                    "class_name": "RuntimeDataConnector",
-                    "batch_identifiers": ["default_identifier_name"],
-                }
-            },
-        )
+        datasource = context.data_sources.get(datasource_name)
 
-    # Batch request
-    batch_request = {
-        "datasource_name": datasource_name,
-        "data_connector_name": "default_runtime_data_connector_name",
-        "data_asset_name": "image_metadata",
-        "runtime_parameters": {"batch_data": df},
-        "batch_identifiers": {"default_identifier_name": "default"},
-    }
-
-    # Validator
-    validator = context.get_validator(
-        batch_request=batch_request,
-        expectation_suite_name="image_metadata_suite",
+    # ✅ Register dataframe as an asset
+    asset_name = "image_metadata_asset"
+    asset = datasource.add_dataframe_asset(
+        name=asset_name,
+        dataframe=df
     )
 
-    # Expectations
+    # ✅ Build batch request
+    batch_request = asset.build_batch_request()
+
+    # ✅ Create / load expectation suite
+    suite_name = "image_metadata_suite"
+
+    try:
+        context.get_expectation_suite(suite_name)
+        print("Using existing expectation suite")
+    except Exception:
+        print("Creating expectation suite...")
+        context.add_expectation_suite(expectation_suite_name=suite_name)
+
+    # ✅ Validator
+    validator = context.get_validator(
+        batch_request=batch_request,
+        expectation_suite_name=suite_name,
+    )
+
+    # ✅ Expectations
     validator.expect_column_values_to_not_be_null("filename")
     validator.expect_column_values_to_be_between("width", min_value=1)
     validator.expect_column_values_to_be_between("height", min_value=1)
 
-    # Save + validate
+    # ✅ Save + validate
     validator.save_expectation_suite(discard_failed_expectations=False)
     results = validator.validate()
 
     print("Validation success:", results["success"])
 
     if not results["success"]:
-        raise Exception("Data quality validation FAILED")
+        raise Exception(" Data quality validation FAILED")
 
-    print("✅ Data quality checks PASSED")
+    print(" Data quality checks PASSED")
 
 if __name__ == "__main__":
     main()
