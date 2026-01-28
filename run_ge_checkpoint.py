@@ -46,25 +46,15 @@ def main():
     else:
         asset = datasource.get_asset(asset_name)
 
-    # ✅ Build batch request (THIS IS THE CORRECT SIGNATURE ✅)
+    # ✅ Build batch request
     batch_request = asset.build_batch_request(
         options={"dataframe": df}
     )
 
-    # ✅ Create / load expectation suite
-    suite_name = "image_metadata_suite"
-
-    try:
-        context.get_expectation_suite(suite_name)
-        print("Using existing expectation suite")
-    except Exception:
-        print("Creating expectation suite...")
-        context.add_expectation_suite(expectation_suite_name=suite_name)
-
-    # ✅ Validator
+    # ✅ Validator (suite auto-created internally)
     validator = context.get_validator(
         batch_request=batch_request,
-        expectation_suite_name=suite_name,
+        expectation_suite_name="image_metadata_suite",
     )
 
     # ✅ Expectations
