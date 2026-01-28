@@ -80,9 +80,9 @@ def main():
     print("Validation success:", results["success"])
 
     if not results["success"]:
-        raise Exception("❌ Data quality validation FAILED")
+        raise Exception(" Data quality validation FAILED")
 
-    print("✅ Data quality checks PASSED")
+    print(" Data quality checks PASSED")
 
 if __name__ == "__main__":
     main()
