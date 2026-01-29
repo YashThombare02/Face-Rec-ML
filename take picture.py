@@ -1,5 +1,16 @@
 import cv2
 import tkinter.filedialog
+def extract_face(image, cascade):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = cascade.detectMultiScale(gray, 1.3, 5)
+
+    if len(faces) == 0:
+        return None
+
+    x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+    roi_gray = gray[y:y+h, x:x+w]
+    return cv2.resize(roi_gray, (50, 50))
+
 
 camera_input = False
 

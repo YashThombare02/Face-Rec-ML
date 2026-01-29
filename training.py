@@ -132,6 +132,15 @@ def save ():
     np.save(b4, best_layer4_biases.copy()  )
     print('saved \n')
 
+def build_dataset(images):
+    data = []
+    for img1, img2 in images:
+        v1 = img1.flatten() / 255.0
+        v2 = img2.flatten() / 255.0
+        data.append(np.concatenate([v1, v2]))
+    return np.array(data)
+
+
 def test(a1,a2=0,a3=0,a4=0):
     data = [a1,a2,a3,a4]
     layer1.forward(data)
