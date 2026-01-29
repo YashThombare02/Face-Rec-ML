@@ -120,6 +120,22 @@ if not load_photos():
 
 print("Dataset size:", len(data))
 
+def predict(model_layers, X):
+    l1, a1, l2, a2, l3, a3, l4, a4 = model_layers
+
+    l1.forward(X)
+    a1.forward(l1.output)
+
+    l2.forward(a1.output)
+    a2.forward(l2.output)
+
+    l3.forward(a2.output)
+    a3.forward(l3.output)
+
+    l4.forward(a3.output)
+    a4.forward(l4.output)
+
+    return a4.output
 # -----------------------------
 # Neural Network
 # -----------------------------
