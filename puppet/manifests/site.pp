@@ -14,7 +14,19 @@ file { $project_root:
 }
 
 # ===============================
-# Copy Project Files (Optimized)
+# Backup Existing Deployment
+# ===============================
+file { 'C:/face_recognition_backup':
+  ensure => directory,
+}
+
+exec { 'backup-old-deployment':
+  command => "cmd /c if exist C:\\face_recognition\\app xcopy C:\\face_recognition\\app C:\\face_recognition_backup /E /Y /I",
+  require => File['C:/face_recognition_backup'],
+}
+
+# ===============================
+# Copy Project Files
 # ===============================
 file { "${project_root}/app":
   ensure  => directory,
@@ -28,6 +40,27 @@ file { "${project_root}/app":
     'data',
     'model'
   ],
+  require => Exec['backup-old-deployment'],
+}
+
+# ===============================
+# Version Tagging
+# ===============================
+file { 'C:/face_recognition/version.txt':
+  ensure  => file,
+  source  => "${project_root}/app/version.txt",
+}
+
+# ===============================
+# Deployment Logs
+# ===============================
+file { 'C:/face_recognition/deploy.log':
+  ensure => file,
+}
+
+exec { 'log-deployment':
+  command => "cmd /c echo Deployed at %DATE% %TIME% >> C:/face_recognition/deploy.log",
+  require => File['C:/face_recognition/deploy.log'],
 }
 
 # ===============================
@@ -52,4 +85,20 @@ exec { 'run-tests':
 exec { 'run-ge':
   command => "\"${python_path}\" ${project_root}/app/run_ge_checkpoint.py",
   require => Exec['run-tests'],
+}
+
+# ===============================
+# Health Check
+# ===============================
+exec { 'health-check':
+  command => "\"${python_path}\" ${project_root}/app/health_check.py",
+  require => Exec['run-ge'],
+}
+
+# ===============================
+# Start Deployment Dashboard
+# ===============================
+exec { 'start-dashboard':
+  command => "cmd /c start \"FaceDashboard\" \"${python_path}\" ${project_root}/app/dashboard.py",
+  require => Exec['health-check'],
 }
