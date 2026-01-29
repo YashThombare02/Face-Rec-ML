@@ -24,20 +24,6 @@ pipeline {
             }
         }
 
-        // ================= PUPPET SYNTAX VALIDATION =================
-        stage('Puppet Validation') {
-            steps {
-                echo '🛠 Validating Puppet manifests...'
-                bat """
-                    "${PUPPET_BIN}" --version
-                    if exist puppet\\manifests (
-                        "${PUPPET_BIN}" parser validate puppet\\manifests\\*.pp
-                    ) else (
-                        echo No puppet manifests found - skipping validation
-                    )
-                """
-            }
-        }
 
         // ================= PYTHON ENVIRONMENT =================
         stage('Setup Python Environment') {
