@@ -1,0 +1,12 @@
+[Unit]
+Description=Face Recognition App
+After=network.target
+
+[Service]
+User=faceuser
+WorkingDirectory=/opt/face_recognition
+ExecStart=/opt/face_recognition/venv/bin/python test.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

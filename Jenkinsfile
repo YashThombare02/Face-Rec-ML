@@ -16,18 +16,18 @@ pipeline {
 
     stages {
 
-        // ---------------- CHECKOUT ----------------
-        stage('Checkout') {
+        // ================= CHECKOUT =================
+        stage('Checkout Code') {
             steps {
-                echo 'Checking out source code...'
+                echo '📥 Checking out source code...'
                 checkout scm
             }
         }
 
-        // ---------------- PUPPET ----------------
+        // ================= PUPPET SYNTAX VALIDATION =================
         stage('Puppet Validation') {
             steps {
-                echo 'Validating Puppet manifests...'
+                echo '🛠 Validating Puppet manifests...'
                 bat """
                     "${PUPPET_BIN}" --version
                     if exist puppet\\manifests (
@@ -39,10 +39,10 @@ pipeline {
             }
         }
 
-        // ---------------- PYTHON SETUP ----------------
-        stage('Setup Environment') {
+        // ================= PYTHON ENVIRONMENT =================
+        stage('Setup Python Environment') {
             steps {
-                echo 'Setting up Python virtual environment...'
+                echo '🐍 Creating Python virtual environment...'
                 bat """
                     "${PYTHON_HOME}" --version
                     if not exist ${VENV_DIR} (
@@ -54,10 +54,10 @@ pipeline {
             }
         }
 
-        // ---------------- DEPENDENCIES ----------------
+        // ================= DEPENDENCIES =================
         stage('Install Dependencies') {
             steps {
-                echo 'Installing dependencies...'
+                echo '📦 Installing project dependencies...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     pip install -r requirements.txt
@@ -66,36 +66,32 @@ pipeline {
             }
         }
 
-        // ---------------- GENERATE IMAGE METADATA ----------------
+        // ================= GENERATE METADATA =================
         stage('Generate Image Metadata') {
             steps {
-                echo 'Generating image metadata CSV...'
+                echo '🧾 Generating image metadata CSV...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     python generate_image_metadata.py
-
-                    echo -------- Workspace Files --------
-                    dir
-                    echo ---------------------------------
                 """
             }
         }
 
-        // ---------------- GREAT EXPECTATIONS ----------------
-        stage('Data Quality Validation') {
+        // ================= DATA QUALITY =================
+        stage('Great Expectations Validation') {
             steps {
-                echo 'Running Great Expectations validation...'
+                echo '📊 Running data quality validation...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-                    python run_ge_checkpoint.py
+                    python run_ge_checkpoint.py || exit /b 1
                 """
             }
         }
 
-        // ---------------- LINTING (SAFE + FAST) ----------------
+        // ================= LINTING =================
         stage('Linting') {
             steps {
-                echo 'Running lint checks...'
+                echo '🧹 Running lint checks...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
 
@@ -103,7 +99,6 @@ pipeline {
                         pylint src --ignore=venv --exit-zero > pylint-report.txt
                         flake8 src --exclude=venv,__pycache__ --format=json --output-file=flake8-report.json || exit /b 0
                     ) else (
-                        echo No src folder found - running lint on python files only
                         pylint *.py --exit-zero > pylint-report.txt
                         flake8 *.py --format=json --output-file=flake8-report.json || exit /b 0
                     )
@@ -111,16 +106,14 @@ pipeline {
             }
         }
 
-        // ---------------- UNIT TESTS ----------------
+        // ================= UNIT TESTS =================
         stage('Unit Tests') {
             steps {
-                echo 'Running unit tests...'
+                echo '🧪 Running unit tests...'
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
-
                     if exist tests (
-                        pytest ^
-                          --junitxml=test-results.xml
+                        pytest --junitxml=test-results.xml
                     ) else (
                         echo No tests folder found - skipping tests
                         echo.> test-results.xml
@@ -129,10 +122,20 @@ pipeline {
             }
         }
 
-        // ---------------- ARCHIVE ----------------
+        // ================= DEPLOYMENT =================
+        stage('Deploy using Puppet') {
+            steps {
+                echo '🚀pp Deploying application using Puppet...'
+                bat """
+                    "${PUPPET_BIN}" apply puppet\\manifests\\site.pp
+                """
+            }
+        }
+
+        // ================= ARCHIVE =================
         stage('Archive Artifacts') {
             steps {
-                echo 'Archiving reports...'
+                echo '📦 Archiving reports...'
                 archiveArtifacts artifacts: '''
                     image_metadata.csv,
                     test-results.xml,
@@ -151,10 +154,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo 'Pipeline executed successfully!'
+            echo ' Pipeline executed successfully!'
         }
         failure {
-            echo 'Pipeline failed — check logs.'
+            echo ' Pipeline failed — check logs.'
         }
     }
 }
