@@ -44,14 +44,16 @@ def load_module(filename, name):
     try:
         spec.loader.exec_module(module)
     except BaseException:
+        # Ignore ALL runtime errors during import
         pass
     return module
 
 
-# Load your scripts (EXCEPT sin nn.py)
+# Load your scripts safely
 take_picture = load_module("take picture.py", "take_picture_mod")
 training = load_module("training.py", "training_mod")
 test_app = load_module("test.py", "test_mod")
+sin_nn = load_module("sin nn.py", "sin_nn_mod")
 
 
 # =============================
@@ -100,3 +102,13 @@ def test_predict_output_shape():
 
     output = test_app.predict(layers, X)
     assert output.shape == (2, 2)
+
+
+# =============================
+# sin nn.py tests
+# =============================
+def test_sin_layer_forward_shape():
+    layer = sin_nn.Layer(1, 5)
+    X = np.random.rand(4, 1)
+    layer.forward(X)
+    assert layer.output.shape == (4, 5)
