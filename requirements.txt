@@ -2,3 +2,5 @@ numpy
 opencv-python
 scikit-learn
 Pillow
+pytest
+pytest-cov
