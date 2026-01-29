@@ -91,11 +91,23 @@ def test_training_build_dataset_shape():
 def test_predict_output_shape():
     X = np.random.rand(2, 5000)
 
+    # Dummy layer objects (only need forward + output)
+    class DummyLayer:
+        def __init__(self, out_size):
+            self.out_size = out_size
+
+        def forward(self, x):
+            self.output = np.random.rand(len(x), self.out_size)
+
+    class DummyActivation:
+        def forward(self, x):
+            self.output = x
+
     layers = [
-        test_app.Layer(5000, 10), test_app.ActivationReLU(),
-        test_app.Layer(10, 5), test_app.ActivationReLU(),
-        test_app.Layer(5, 3), test_app.ActivationReLU(),
-        test_app.Layer(3, 2), test_app.ActivationSoftmax()
+        DummyLayer(10), DummyActivation(),
+        DummyLayer(5),  DummyActivation(),
+        DummyLayer(3),  DummyActivation(),
+        DummyLayer(2),  DummyActivation()
     ]
 
     output = test_app.predict(layers, X)
