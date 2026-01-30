@@ -24,7 +24,6 @@ pipeline {
             }
         }
 
-
         // ================= PYTHON ENVIRONMENT =================
         stage('Setup Python Environment') {
             steps {
@@ -111,7 +110,7 @@ pipeline {
         // ================= DEPLOYMENT =================
         stage('Deploy using Puppet') {
             steps {
-                echo '🚀pp Deploying application using Puppet...'
+                echo '🚀 Deploying application using Puppet...'
                 bat """
                     "${PUPPET_BIN}" apply puppet\\manifests\\site.pp
                 """
@@ -134,16 +133,37 @@ pipeline {
         }
     }
 
+    // ================= POST ACTIONS =================
     post {
         always {
             junit testResults: 'test-results.xml', allowEmptyResults: true
-            cleanWs()
+
+            echo '🧹 Cleaning up workspace (Windows-safe)...'
+
+            bat '''
+                if exist venv\\Scripts\\deactivate.bat (
+                    call venv\\Scripts\\deactivate.bat
+                )
+                taskkill /F /IM python.exe /T >nul 2>&1 || exit /b 0
+            '''
+
+            // Prevent cleanup failure from failing the pipeline
+            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                cleanWs(
+                    deleteDirs: true,
+                    notFailBuild: true,
+                    retryCount: 5,
+                    retryDelay: 5
+                )
+            }
         }
+
         success {
-            echo ' Pipeline executed successfully!'
+            echo '✅ Pipeline executed successfully!'
         }
+
         failure {
-            echo ' Pipeline failed — check logs.'
+            echo '❌ Pipeline failed — check logs.'
         }
     }
 }
