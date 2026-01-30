@@ -7,7 +7,6 @@ pipeline {
         VENV_DIR          = 'venv'
         PUPPET_BIN        = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
         SONAR_PROJECT_KEY = 'face-recognition-ml'
-        SONAR_HOST_URL    = 'http://localhost:9000'
     }
 
     options {
@@ -18,7 +17,6 @@ pipeline {
 
     stages {
 
-        // ================= CHECKOUT =================
         stage('Checkout Code') {
             steps {
                 echo '📥 Checking out source code...'
@@ -26,7 +24,6 @@ pipeline {
             }
         }
 
-        // ================= PYTHON ENV =================
         stage('Setup Python Environment') {
             steps {
                 echo '🐍 Creating Python virtual environment...'
@@ -41,7 +38,6 @@ pipeline {
             }
         }
 
-        // ================= DEPENDENCIES =================
         stage('Install Dependencies') {
             steps {
                 echo '📦 Installing project dependencies...'
@@ -53,18 +49,16 @@ pipeline {
             }
         }
 
-        // ================= SONARQUBE =================
+        // ================= SONARQUBE (FIXED) =================
         stage('Code Quality - SonarQube') {
             steps {
                 echo '🔍 Running SonarQube code analysis...'
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                withSonarQubeEnv('sonar-token') {
                     bat """
                         sonar-scanner ^
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
                         -Dsonar.projectName=${PROJECT_NAME} ^
                         -Dsonar.sources=. ^
-                        -Dsonar.host.url=${SONAR_HOST_URL} ^
-                        -Dsonar.login=%SONAR_TOKEN% ^
                         -Dsonar.python.version=3.10 ^
                         -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
                     """
@@ -72,7 +66,6 @@ pipeline {
             }
         }
 
-        // ================= METADATA =================
         stage('Generate Image Metadata') {
             steps {
                 echo '🧾 Generating image metadata CSV...'
@@ -83,7 +76,6 @@ pipeline {
             }
         }
 
-        // ================= DATA QUALITY =================
         stage('Great Expectations Validation') {
             steps {
                 echo '📊 Running data quality validation...'
@@ -94,7 +86,6 @@ pipeline {
             }
         }
 
-        // ================= TESTS =================
         stage('Unit Tests') {
             steps {
                 echo '🧪 Running unit tests...'
@@ -110,7 +101,6 @@ pipeline {
             }
         }
 
-        // ================= DEPLOY =================
         stage('Deploy using Puppet') {
             steps {
                 echo '🚀 Deploying application using Puppet...'
@@ -120,7 +110,6 @@ pipeline {
             }
         }
 
-        // ================= ARCHIVE =================
         stage('Archive Artifacts') {
             steps {
                 echo '📦 Archiving reports...'
@@ -134,13 +123,11 @@ pipeline {
         }
     }
 
-    // ================= POST =================
     post {
         always {
             junit testResults: 'test-results.xml', allowEmptyResults: true
 
             echo '🧹 Cleaning workspace (Windows-safe)...'
-
             bat '''
                 if exist venv\\Scripts\\deactivate.bat (
                     call venv\\Scripts\\deactivate.bat
@@ -148,9 +135,7 @@ pipeline {
                 taskkill /F /IM python.exe /T >nul 2>&1 || exit /b 0
             '''
 
-            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                cleanWs(deleteDirs: true, notFailBuild: true)
-            }
+            cleanWs(deleteDirs: true, notFailBuild: true)
         }
 
         success {
