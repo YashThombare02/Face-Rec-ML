@@ -24,7 +24,7 @@ pipeline {
             }
         }
 
-        // ================= PYTHON ENVIRONMENT =================
+        // ================= PYTHON ENV =================
         stage('Setup Python Environment') {
             steps {
                 echo '🐍 Creating Python virtual environment...'
@@ -51,7 +51,7 @@ pipeline {
             }
         }
 
-        // ================= GENERATE METADATA =================
+        // ================= METADATA =================
         stage('Generate Image Metadata') {
             steps {
                 echo '🧾 Generating image metadata CSV...'
@@ -73,7 +73,7 @@ pipeline {
             }
         }
 
-        // ================= LINTING =================
+        // ================= LINT =================
         stage('Linting') {
             steps {
                 echo '🧹 Running lint checks...'
@@ -91,7 +91,7 @@ pipeline {
             }
         }
 
-        // ================= UNIT TESTS =================
+        // ================= TESTS =================
         stage('Unit Tests') {
             steps {
                 echo '🧪 Running unit tests...'
@@ -107,7 +107,7 @@ pipeline {
             }
         }
 
-        // ================= DEPLOYMENT =================
+        // ================= DEPLOY =================
         stage('Deploy using Puppet') {
             steps {
                 echo '🚀 Deploying application using Puppet...'
@@ -133,13 +133,14 @@ pipeline {
         }
     }
 
-    // ================= POST ACTIONS =================
+    // ================= POST =================
     post {
         always {
             junit testResults: 'test-results.xml', allowEmptyResults: true
 
-            echo '🧹 Cleaning up workspace (Windows-safe)...'
+            echo '🧹 Cleaning workspace (Windows-safe)...'
 
+            // Release file locks
             bat '''
                 if exist venv\\Scripts\\deactivate.bat (
                     call venv\\Scripts\\deactivate.bat
@@ -147,14 +148,9 @@ pipeline {
                 taskkill /F /IM python.exe /T >nul 2>&1 || exit /b 0
             '''
 
-            // Prevent cleanup failure from failing the pipeline
+            // Cleanup without failing build
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                cleanWs(
-                    deleteDirs: true,
-                    notFailBuild: true,
-                    retryCount: 5,
-                    retryDelay: 5
-                )
+                cleanWs(deleteDirs: true, notFailBuild: true)
             }
         }
 
