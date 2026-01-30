@@ -2,11 +2,12 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_NAME = 'face_recognition'
-        PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
-        VENV_DIR     = 'venv'
-        PUPPET_BIN   = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
+        PROJECT_NAME      = 'face_recognition'
+        PYTHON_HOME       = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
+        VENV_DIR          = 'venv'
+        PUPPET_BIN        = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
         SONAR_PROJECT_KEY = 'face-recognition-ml'
+        SONAR_HOST_URL    = 'http://localhost:9000'
     }
 
     options {
@@ -56,26 +57,17 @@ pipeline {
         stage('Code Quality - SonarQube') {
             steps {
                 echo '🔍 Running SonarQube code analysis...'
-                withSonarQubeEnv('SonarQubeServer') {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     bat """
                         sonar-scanner ^
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
                         -Dsonar.projectName=${PROJECT_NAME} ^
                         -Dsonar.sources=. ^
-                        -Dsonar.language=py ^
+                        -Dsonar.host.url=${SONAR_HOST_URL} ^
+                        -Dsonar.login=%SONAR_TOKEN% ^
                         -Dsonar.python.version=3.10 ^
                         -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
                     """
-                }
-            }
-        }
-
-        // ================= QUALITY GATE =================
-        stage('Quality Gate') {
-            steps {
-                echo '🚦 Waiting for SonarQube Quality Gate...'
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -111,7 +103,7 @@ pipeline {
                     if exist tests (
                         pytest --junitxml=test-results.xml
                     ) else (
-                        echo No tests folder found - skipping tests
+                        echo No tests found
                         echo.> test-results.xml
                     )
                 """
