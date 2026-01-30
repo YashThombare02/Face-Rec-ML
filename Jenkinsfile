@@ -6,6 +6,7 @@ pipeline {
         PYTHON_HOME  = 'C:/Users/ythom/AppData/Local/Programs/Python/Python310/python.exe'
         VENV_DIR     = 'venv'
         PUPPET_BIN   = 'C:/Program Files/Puppet Labs/Puppet/bin/puppet.bat'
+        SONAR_PROJECT_KEY = 'face-recognition-ml'
     }
 
     options {
@@ -46,8 +47,36 @@ pipeline {
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     pip install -r requirements.txt
-                    pip install pytest pytest-cov pylint flake8 great_expectations pandas
+                    pip install pytest pytest-cov great_expectations pandas
                 """
+            }
+        }
+
+        // ================= SONARQUBE =================
+        stage('Code Quality - SonarQube') {
+            steps {
+                echo '🔍 Running SonarQube code analysis...'
+                withSonarQubeEnv('SonarQubeServer') {
+                    bat """
+                        sonar-scanner ^
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
+                        -Dsonar.projectName=${PROJECT_NAME} ^
+                        -Dsonar.sources=. ^
+                        -Dsonar.language=py ^
+                        -Dsonar.python.version=3.10 ^
+                        -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
+                    """
+                }
+            }
+        }
+
+        // ================= QUALITY GATE =================
+        stage('Quality Gate') {
+            steps {
+                echo '🚦 Waiting for SonarQube Quality Gate...'
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
@@ -69,24 +98,6 @@ pipeline {
                 bat """
                     call ${VENV_DIR}\\Scripts\\activate.bat
                     python run_ge_checkpoint.py || exit /b 1
-                """
-            }
-        }
-
-        // ================= LINT =================
-        stage('Linting') {
-            steps {
-                echo '🧹 Running lint checks...'
-                bat """
-                    call ${VENV_DIR}\\Scripts\\activate.bat
-
-                    if exist src (
-                        pylint src --ignore=venv --exit-zero > pylint-report.txt
-                        flake8 src --exclude=venv,__pycache__ --format=json --output-file=flake8-report.json || exit /b 0
-                    ) else (
-                        pylint *.py --exit-zero > pylint-report.txt
-                        flake8 *.py --format=json --output-file=flake8-report.json || exit /b 0
-                    )
                 """
             }
         }
@@ -124,8 +135,6 @@ pipeline {
                 archiveArtifacts artifacts: '''
                     image_metadata.csv,
                     test-results.xml,
-                    pylint-report.txt,
-                    flake8-report.json,
                     gx/**,
                     great_expectations/**
                 ''', allowEmptyArchive: true
@@ -140,7 +149,6 @@ pipeline {
 
             echo '🧹 Cleaning workspace (Windows-safe)...'
 
-            // Release file locks
             bat '''
                 if exist venv\\Scripts\\deactivate.bat (
                     call venv\\Scripts\\deactivate.bat
@@ -148,7 +156,6 @@ pipeline {
                 taskkill /F /IM python.exe /T >nul 2>&1 || exit /b 0
             '''
 
-            // Cleanup without failing build
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                 cleanWs(deleteDirs: true, notFailBuild: true)
             }
