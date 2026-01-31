@@ -49,19 +49,22 @@ pipeline {
             }
         }
 
-        // ================= SONARQUBE (FIXED) =================
+        // ================= SONARQUBE (FIXED & ROBUST) =================
         stage('Code Quality - SonarQube') {
             steps {
                 echo '🔍 Running SonarQube code analysis...'
                 withSonarQubeEnv('sonar-token') {
-                    bat """
-                        sonar-scanner ^
+                    script {
+                        def scannerHome = tool 'SonarScanner'
+                        bat """
+                        "${scannerHome}\\bin\\sonar-scanner.bat" ^
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
                         -Dsonar.projectName=${PROJECT_NAME} ^
                         -Dsonar.sources=. ^
                         -Dsonar.python.version=3.10 ^
                         -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
-                    """
+                        """
+                    }
                 }
             }
         }
