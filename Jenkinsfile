@@ -49,21 +49,34 @@ pipeline {
             }
         }
 
-        // ================= SONARQUBE (FIXED & ROBUST) =================
+        // ================= SONARQUBE (JAVA 25 FORCED) =================
         stage('Code Quality - SonarQube') {
             steps {
                 echo '🔍 Running SonarQube code analysis...'
                 withSonarQubeEnv('sonar-token') {
                     script {
                         def scannerHome = tool 'SonarScanner'
-                        bat """
-                        "${scannerHome}\\bin\\sonar-scanner.bat" ^
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
-                        -Dsonar.projectName=${PROJECT_NAME} ^
-                        -Dsonar.sources=. ^
-                        -Dsonar.python.version=3.10 ^
-                        -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
-                        """
+                        def javaHome    = tool 'JDK25'
+
+                        withEnv([
+                            "JAVA_HOME=${javaHome}",
+                            "PATH=${javaHome}\\bin;${env.PATH}"
+                        ]) {
+                            bat """
+                            echo ===== JAVA DEBUG =====
+                            echo JAVA_HOME=%JAVA_HOME%
+                            where java
+                            java -version
+                            echo ======================
+
+                            "${scannerHome}\\bin\\sonar-scanner.bat" ^
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} ^
+                            -Dsonar.projectName=${PROJECT_NAME} ^
+                            -Dsonar.sources=. ^
+                            -Dsonar.python.version=3.10 ^
+                            -Dsonar.exclusions=venv/**,tests/**,gx/**,great_expectations/**
+                            """
+                        }
                     }
                 }
             }
